@@ -12,7 +12,7 @@ import (
 func IsSymlink(path string) (bool, error) {
 	fi, err := os.Lstat(path)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("is symlink: %w", err)
 	}
 	return fi.Mode()&os.ModeSymlink != 0, nil
 }
@@ -21,7 +21,7 @@ func SearchFiles(paths []string, pattern string, symlinkLimit int) error {
 	// The symlink counting logic can be cleaned up.
 	pat, err := regexp.Compile(pattern)
 	if err != nil {
-		return err
+		return fmt.Errorf("search files: %w", err)
 	}
 	if symlinkLimit < 0 {
 		return nil
@@ -29,12 +29,12 @@ func SearchFiles(paths []string, pattern string, symlinkLimit int) error {
 	for _, path := range paths {
 		fi, err := os.Stat(path)
 		if err != nil {
-			Eprintln(err)
+			Eprinterr("calling stat", err)
 			continue
 		}
 		sym, err := IsSymlink(path)
 		if err != nil {
-			Eprintln(err)
+			Eprinterr("checking symlink", err)
 			continue
 		}
 		if sym {
@@ -44,7 +44,7 @@ func SearchFiles(paths []string, pattern string, symlinkLimit int) error {
 		case fi.IsDir():
 			items, err := ReadDir(path)
 			if err != nil {
-				Eprintln(err)
+				Eprinterr("reading directory", err)
 				continue
 			}
 			// we're compiling the regex over and over again.
@@ -52,18 +52,18 @@ func SearchFiles(paths []string, pattern string, symlinkLimit int) error {
 			continue
 		default:
 			if err := SearchFile(path, pat, symlinkLimit); err != nil {
-				Eprintln(err)
+				Eprinterr("searching for file", err)
 				continue
 			}
 		}
 	}
-	return err
+	return nil
 }
 
 func ReadDir(path string) ([]string, error) {
 	items, err := os.ReadDir(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read dir: %w", err)
 	}
 	out := make([]string, len(items))
 	// not portable
@@ -79,7 +79,7 @@ func ReadDir(path string) ([]string, error) {
 func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 	sym, err := IsSymlink(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("search file: %w", err)
 	}
 	if sym {
 		symlinkLimit--
@@ -89,7 +89,7 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 	}
 	fh, err := os.Open(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("search file: %w", err)
 	}
 	// The first version does not need to be fast.
 	// Read the whole thing into memory.
@@ -99,7 +99,7 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 	// robust.
 	buf, err := io.ReadAll(fh)
 	if err != nil {
-		return err
+		return fmt.Errorf("search file: %w", err)
 	}
 	lines := strings.Split(string(buf), "\n")
 	for i, line := range lines {
@@ -122,4 +122,11 @@ func Eprintf(content string, args ...any) {
 
 func Eprintln(args ...any) {
 	_, _ = fmt.Fprintln(os.Stderr, args...)
+}
+
+func Eprinterr(wrapmsg string, e error) {
+	if e == nil {
+		return
+	}
+	Eprintln(fmt.Errorf("%s: %w", wrapmsg, e))
 }
