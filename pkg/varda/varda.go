@@ -4,7 +4,6 @@ package varda
 import (
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"regexp"
 	"strings"
@@ -15,7 +14,7 @@ func IsSymlink(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return fi.Mode()&fs.ModeSymlink == 1, nil
+	return fi.Mode()&os.ModeSymlink != 0, nil
 }
 
 func SearchFiles(paths []string, pattern string, symlinkLimit int) error {
