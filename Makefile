@@ -1,3 +1,6 @@
 build:
 	go test ./...
 	go build -o=./varda ./cmd/varda/...
+
+install:
+	install -T ./varda /usr/local/bin/varda
