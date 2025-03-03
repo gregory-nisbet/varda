@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -71,12 +72,35 @@ func ReadDir(path string) ([]string, error) {
 		if item.Name() == "." || item.Name() == ".." {
 			continue
 		}
+		// traversing into git or mercurial hurts real world usability.
+		if item.Name() == ".git" {
+			continue
+		}
+		if item.Name() == ".hg" {
+			continue
+		}
 		out[i] = fmt.Sprintf("%s/%s", path, item.Name())
 	}
 	return out, nil
 }
 
 func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
+	// If the file *name* matches the search pattern, return a special
+	// line corresponding to the file.
+	//
+	// TODO: only do this under certain circumstances.
+	//
+	// Certain types of queries like: "foo.c" should be treated specially.
+	// As should "builtin/whatever"
+	//
+	// For right now, we just check the last portion of the path.
+	//
+	// I may want to suppress this if the first line of the file also matches.
+	// Just a thought.
+	if pattern.MatchString(filepath.Base(path)) {
+		Oprintf("%s:1:\n", path)
+	}
+
 	sym, err := IsSymlink(path)
 	if err != nil {
 		return fmt.Errorf("search file: %w", err)
