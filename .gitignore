@@ -1,5 +1,6 @@
-# ignore varda executable.
+# ignore varda executables.
 /varda
+/varda.gccgo
 
 
 # If you prefer the allow list template instead of the deny list, see community template:
