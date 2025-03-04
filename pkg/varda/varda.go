@@ -129,6 +129,26 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 	for i, line := range lines {
 		linum := i + 1
 		if pattern.MatchString(line) {
+			// print the line before and after delimited by @@ if it's short enough.
+			// This can provide crucial context when scanning lines.
+			//
+			// I use some ridiculous heuristics to check whether we're probably looking at text
+			// (vs a binary file) and then print a truncated previous line, our line, and the line after.
+			//
+			// Originally this showed the prev line as well, but that is honestly too confusing.
+			nextLine := ""
+			if i+1 < len(lines) {
+				nextLine = lines[i+1]
+			}
+			nextNextLine := ""
+			if i+2 < len(lines) {
+				nextNextLine = lines[i+2]
+			}
+			if len(line) <= 120 && len(nextLine) <= 120 && len(nextNextLine) <= 120 {
+				Oprintf("%s:%d:%.80s @@ %.80s @@ %.80s\n", path, linum, line, nextLine, nextNextLine)
+				continue
+			}
+
 			// hardcode 80 character limit for line.
 			Oprintf("%s:%d:%.80s\n", path, linum, line)
 		}
@@ -137,15 +157,33 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 }
 
 func Oprintf(content string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stdout, content, args...)
+	out := fmt.Sprintf(content, args...)
+	// defang all ANSI escape sequences.
+	out = Sanitize(out)
+	_, _ = fmt.Fprint(os.Stdout, out)
 }
 
 func Eprintf(content string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, content, args...)
+	out := fmt.Sprintf(content, args...)
+	// defang all ANSI escape sequences.
+	out = Sanitize(out)
+	_, _ = fmt.Fprint(os.Stderr, out)
+}
+
+// Sanitize makes ansi escape sequences inert in a really naive way:
+// by replacing \x1b with ? .
+func Sanitize(content string) string {
+	out := []byte(content)
+	for i, ch := range out {
+		if ch == '\x1b' {
+			out[i] = '?'
+		}
+	}
+	return string(out)
 }
 
 func Eprintln(args ...any) {
-	_, _ = fmt.Fprintln(os.Stderr, args...)
+	Eprintf("%s\n", args...)
 }
 
 func Eprinterr(wrapmsg string, e error) {
