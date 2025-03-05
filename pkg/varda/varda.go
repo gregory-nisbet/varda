@@ -175,7 +175,15 @@ func Eprintf(content string, args ...any) {
 func Sanitize(content string) string {
 	out := []byte(content)
 	for i, ch := range out {
-		if ch == '\x1b' {
+		switch int(ch) {
+		// Escape \x1b == 27 is definitely part of escape sequences for terminals.
+		// But on my machine specifically, another elusive byte sometimes causes
+		// us to switch to an alternate character set.
+		//
+		// Some characters will be removed from this terrible, ad hoc translation later.
+		case 0:
+			out[i] = '%'
+		case 27:
 			out[i] = '?'
 		}
 	}
