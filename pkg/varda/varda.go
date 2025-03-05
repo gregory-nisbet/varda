@@ -177,12 +177,23 @@ func Sanitize(content string) string {
 	for i, ch := range out {
 		switch int(ch) {
 		// Escape \x1b == 27 is definitely part of escape sequences for terminals.
-		// But on my machine specifically, another elusive byte sometimes causes
-		// us to switch to an alternate character set.
 		//
 		// Some characters will be removed from this terrible, ad hoc translation later.
+
+		// Null byte, harmless when printed but common. Replacing it makes it easier to see the structure
+		// of binary files, to an extent.
 		case 0:
 			out[i] = '%'
+
+		// Shift out and shift in.
+		// These are the characters that were occasionally causing me so much trouble by garbling the
+		// display.
+		case 14:
+			out[i] = '>'
+		case 15:
+			out[i] = '<'
+
+		// Escape, the beginning of any ANSI escape sequence.
 		case 27:
 			out[i] = '?'
 		}
