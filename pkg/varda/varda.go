@@ -98,7 +98,7 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 	// I may want to suppress this if the first line of the file also matches.
 	// Just a thought.
 	if pattern.MatchString(filepath.Base(path)) {
-		Oprintf("%s:1:\n", path)
+		Oprintlnf("%s:1:\n", path)
 	}
 
 	sym, err := IsSymlink(path)
@@ -145,34 +145,34 @@ func SearchFile(path string, pattern *regexp.Regexp, symlinkLimit int) error {
 				nextNextLine = lines[i+2]
 			}
 			if len(line) <= 120 && len(nextLine) <= 120 && len(nextNextLine) <= 120 {
-				Oprintf("%s:%d:%.80s @@ %.80s @@ %.80s\n", path, linum, line, nextLine, nextNextLine)
+				Oprintlnf("%s:%d:%.80s @@ %.80s @@ %.80s", path, linum, line, nextLine, nextNextLine)
 				continue
 			}
 
 			// hardcode 80 character limit for line.
-			Oprintf("%s:%d:%.80s\n", path, linum, line)
+			Oprintlnf("%s:%d:%.80s", path, linum, line)
 		}
 	}
 	return nil
 }
 
-func Oprintf(content string, args ...any) {
+func Oprintlnf(content string, args ...any) {
 	out := fmt.Sprintf(content, args...)
 	// defang all ANSI escape sequences.
-	out = Sanitize(out)
-	_, _ = fmt.Fprint(os.Stdout, out)
+	out = Sanitize(out, true)
+	_, _ = fmt.Fprintf(os.Stdout, "%s\n", out)
 }
 
 func Eprintf(content string, args ...any) {
 	out := fmt.Sprintf(content, args...)
 	// defang all ANSI escape sequences.
-	out = Sanitize(out)
+	out = Sanitize(out, false)
 	_, _ = fmt.Fprint(os.Stderr, out)
 }
 
 // Sanitize makes ansi escape sequences inert in a really naive way:
 // by replacing \x1b with ? .
-func Sanitize(content string) string {
+func Sanitize(content string, replaceNewline bool) string {
 	out := []byte(content)
 	for i, ch := range out {
 		switch int(ch) {
@@ -184,6 +184,20 @@ func Sanitize(content string) string {
 		// of binary files, to an extent.
 		case 0:
 			out[i] = '%'
+
+		case 10:
+			if replaceNewline {
+				out[i] = '@'
+			}
+			// vertical tab.
+		case 11:
+			out[i] = '/'
+			// form feed.
+		case 12:
+			out[i] = '#'
+			// Carriage return. Makes lines take up too much space.
+		case 13:
+			out[i] = '|'
 
 		// Shift out and shift in.
 		// These are the characters that were occasionally causing me so much trouble by garbling the
